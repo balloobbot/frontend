@@ -8405,7 +8405,8 @@
               "strong": "Strong",
               "medium": "Medium",
               "weak": "Weak",
-              "none": "None"
+              "none": "None",
+              "unknown": "Unknown"
             },
             "roles": {
               "leader": "Leader",
