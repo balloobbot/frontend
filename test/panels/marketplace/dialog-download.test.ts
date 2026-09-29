@@ -99,6 +99,37 @@ const expandReleases = (dialog: DialogMarketplaceDownload) =>
     );
 
 describe("dialog-marketplace-download", () => {
+  it("review: permits selecting a compatible older release", async () => {
+    const dialog = await openDownloadDialog(
+      {
+        repository: repositoryInfo("1", {
+          available_version: "2.0.0",
+          can_download: false,
+          homeassistant: "9999.1.0",
+        }),
+      },
+      mockConnection(async (message) =>
+        message.type === "marketplace/repository/releases"
+          ? [release("2.0.0"), release("1.0.0")]
+          : null
+      )
+    );
+    expandReleases(dialog);
+    await settle(dialog);
+    dialog
+      .shadowRoot!.querySelector("ha-select")!
+      .dispatchEvent(
+        new CustomEvent("selected", { detail: { value: "1.0.0" } })
+      );
+    await settle(dialog);
+    expect(getInternals(dialog)._selectedVersion).toBe("1.0.0");
+    expect(
+      dialog
+        .shadowRoot!.querySelector('ha-button[slot="primaryAction"]')!
+        .hasAttribute("disabled")
+    ).toBe(false);
+  });
+
   afterEach(() => {
     document.body.innerHTML = "";
     vi.mocked(showConfirmationDialog).mockClear();
