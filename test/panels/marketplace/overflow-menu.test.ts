@@ -15,6 +15,10 @@ import {
 import { showMarketplaceInUseDialog } from "../../../src/panels/marketplace/dialogs/show-dialog-marketplace-in-use";
 import type { MarketplaceInUseDialogParams } from "../../../src/panels/marketplace/dialogs/show-dialog-marketplace-in-use";
 import { showMarketplaceInstallDialog } from "../../../src/panels/marketplace/dialogs/show-dialog-marketplace-install";
+import {
+  archiveRepository,
+  uninstallMarketplaceArchive,
+} from "../../../src/data/marketplace/archive";
 import type { LocalizeFunc } from "../../../src/common/translations/localize";
 import type { RepositoryBase } from "../../../src/data/marketplace/repository";
 import type { MarketplaceRepositoryMenuEntry } from "../../../src/panels/marketplace/components/ha-marketplace-repository-overflow-menu";
@@ -40,6 +44,10 @@ vi.mock("../../../src/data/config_entries", () => ({
 vi.mock("../../../src/dialogs/generic/show-dialog-box", () => ({
   showAlertDialog: vi.fn(),
   showConfirmationDialog: vi.fn(),
+}));
+vi.mock("../../../src/data/marketplace/archive", async (importOriginal) => ({
+  ...(await importOriginal<object>()),
+  uninstallMarketplaceArchive: vi.fn(),
 }));
 vi.mock("../../../src/data/marketplace/repository", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -304,5 +312,57 @@ describe("repositoryMenuItems", () => {
       expect(showMarketplaceInUseDialog).not.toHaveBeenCalled();
       expect(showConfirmationDialog).not.toHaveBeenCalled();
     });
+  });
+});
+
+describe("repositoryMenuItems for an uploaded archive", () => {
+  const DASHBOARD = {
+    nodeName: "HA-MARKETPLACE-DASHBOARD",
+    hass: {},
+    uploadArchive: vi.fn(),
+  } as unknown as HaMarketplaceRepositoryDashboard & {
+    uploadArchive: () => void;
+  };
+  const ARCHIVE = archiveRepository(
+    {
+      domain: "zipped",
+      name: "Zipped",
+      version: "1.0.0",
+      config_flow: true,
+      installed_at: "2026-10-01T12:00:00+00:00",
+      pending_restart: false,
+    },
+    "Installed from an uploaded ZIP file"
+  );
+
+  const action = (value: string) =>
+    (
+      repositoryMenuItems(DASHBOARD, ARCHIVE, localize).find(
+        (item) => "value" in item && item.value === value
+      ) as unknown as { action: () => Promise<void> }
+    ).action();
+
+  // There is no GitHub repository, nor a page of its own
+  it("offers only another upload and uninstalling", () => {
+    expect(
+      menuValues(repositoryMenuItems(DASHBOARD, ARCHIVE, localize))
+    ).toEqual(["upload_new_version", "uninstall"]);
+  });
+
+  it("uploads a new version", async () => {
+    await action("upload_new_version");
+
+    expect(DASHBOARD.uploadArchive).toHaveBeenCalled();
+  });
+
+  it("uninstalls the archive, not a repository", async () => {
+    await action("uninstall");
+    await vi.mocked(showConfirmationDialog).mock.lastCall![1].action!();
+
+    expect(uninstallMarketplaceArchive).toHaveBeenCalledWith(
+      DASHBOARD.hass,
+      "zipped"
+    );
+    expect(uninstallMarketplaceRepository).not.toHaveBeenCalled();
   });
 });

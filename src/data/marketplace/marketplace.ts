@@ -1,4 +1,5 @@
 import type { HASSDomEvent } from "../../common/dom/fire_event";
+import type { MarketplaceArchive } from "./archive";
 import type { RepositoryBase, RepositoryType } from "./repository";
 
 declare global {
@@ -28,5 +29,6 @@ export interface MarketplaceInfo {
 
 export interface MarketplaceData {
   repositories: RepositoryBase[];
+  archives: MarketplaceArchive[];
   info: MarketplaceInfo;
 }

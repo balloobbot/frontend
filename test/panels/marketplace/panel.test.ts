@@ -112,6 +112,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => INFO,
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(screen(panel, "ha-marketplace-router")).not.toBeNull();
@@ -121,6 +122,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => INFO,
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     configEntriesCallback([
@@ -153,6 +155,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => INFO,
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     configEntriesCallback([
@@ -174,6 +177,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => ({ ...INFO, warning_accepted: false }),
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(screen(panel, "ha-marketplace-warning")).not.toBeNull();
@@ -184,6 +188,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => INFO,
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(panel.hass.loadBackendTranslation).toHaveBeenCalledWith(
@@ -197,6 +202,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": async () => INFO,
       "marketplace/repositories/list": repositories,
+      "marketplace/archives/list": async () => [],
     });
     const pending: ((answer: unknown[]) => void)[] = [];
     repositories.mockClear();
@@ -228,6 +234,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": info,
       "marketplace/repositories/list": repositories,
+      "marketplace/archives/list": async () => [],
     });
     info.mockClear();
     repositories.mockClear();
@@ -244,6 +251,7 @@ describe("ha-panel-marketplace", () => {
     const panel = await openPanel({
       "marketplace/info": info,
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
     info.mockClear();
 
@@ -262,6 +270,7 @@ describe("ha-panel-marketplace", () => {
         throw { code: "not_loaded", message: "Not loaded" };
       },
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(screen(panel, "hass-loading-screen")).not.toBeNull();
@@ -278,6 +287,7 @@ describe("ha-panel-marketplace", () => {
         return INFO;
       },
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(screen(panel, "hass-error-screen")?.error).toBe(
@@ -305,6 +315,7 @@ describe("ha-panel-marketplace", () => {
         };
       },
       "marketplace/repositories/list": async () => [],
+      "marketplace/archives/list": async () => [],
     });
 
     expect(screen(panel, "hass-error-screen")?.error).toBe(

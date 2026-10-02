@@ -12270,6 +12270,15 @@
             "template": "Template"
           }
         },
+        "archive": {
+          "badge": "ZIP",
+          "description": "Installed from an uploaded ZIP file",
+          "upload": "Upload ZIP",
+          "upload_new_version": "Upload new version",
+          "installed_title": "{name} is installed",
+          "installed": "Version {version} of {name} is installed.",
+          "installed_restart": "Version {version} of {name} is installed. Restart Home Assistant to load it."
+        },
         "dashboard": {
           "search": "Search {number} {number, plural,\n  one {repository}\n  other {repositories}\n}",
           "empty_header": "Nothing in the Marketplace yet",

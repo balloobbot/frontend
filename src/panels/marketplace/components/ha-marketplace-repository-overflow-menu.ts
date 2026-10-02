@@ -3,6 +3,7 @@ import {
   mdiBug,
   mdiDelete,
   mdiDownload,
+  mdiFolderZipOutline,
   mdiGithub,
   mdiHistory,
   mdiInformationOutline,
@@ -21,6 +22,10 @@ import {
   showAlertDialog,
   showConfirmationDialog,
 } from "../../../dialogs/generic/show-dialog-box";
+import {
+  isArchiveRepository,
+  uninstallMarketplaceArchive,
+} from "../../../data/marketplace/archive";
 import type { RepositoryBase } from "../../../data/marketplace/repository";
 import { marketplaceErrorMessage } from "../../../data/marketplace/websocket";
 import {
@@ -77,6 +82,10 @@ const uninstallRepository = async (
   element: MarketplaceDashboardElement,
   repository: RepositoryBase
 ) => {
+  if (isArchiveRepository(repository)) {
+    await uninstallMarketplaceArchive(element.hass, repository.domain!);
+    return;
+  }
   await uninstallMarketplaceRepository(element.hass, repository.id);
   if (element.nodeName === "HA-MARKETPLACE-REPOSITORY-DASHBOARD") {
     navigate("/marketplace", { replace: true });
@@ -145,6 +154,26 @@ export const repositoryMenuItems = (
   repository: RepositoryBase,
   localize: LocalizeFunc
 ): MarketplaceRepositoryMenuEntry[] => {
+  // Only on the dashboard, an uploaded archive has no page of its own
+  if (isArchiveRepository(repository)) {
+    return [
+      {
+        value: "upload_new_version",
+        path: mdiFolderZipOutline,
+        label: localize("ui.panel.marketplace.archive.upload_new_version"),
+        action: () => (element as HaMarketplaceDashboard).uploadArchive(),
+      },
+      { divider: true },
+      {
+        value: "uninstall",
+        path: mdiDelete,
+        label: localize("ui.panel.marketplace.common.uninstall"),
+        action: () => confirmUninstallRepository(element, repository, localize),
+        variant: "danger",
+      },
+    ];
+  }
+
   const entries: MarketplaceRepositoryMenuEntry[] = [];
 
   if (element.nodeName === "HA-MARKETPLACE-DASHBOARD") {

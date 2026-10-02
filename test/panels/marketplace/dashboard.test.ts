@@ -1,6 +1,7 @@
 import { render } from "lit";
-import { afterEach, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HomeAssistant } from "../../../src/types";
+import type { MarketplaceArchive } from "../../../src/data/marketplace/archive";
 import type { MarketplaceData } from "../../../src/data/marketplace/marketplace";
 import "../../../src/panels/marketplace/dashboards/ha-marketplace-dashboard";
 
@@ -50,7 +51,8 @@ vi.mock(
 
 const openDashboard = async (
   repositories: unknown[] = [],
-  tab: "discover" | "browse" | "installed" = "browse"
+  tab: "discover" | "browse" | "installed" = "browse",
+  archives: MarketplaceArchive[] = []
 ) => {
   const dashboard = document.createElement("ha-marketplace-dashboard");
   dashboard.tab = tab;
@@ -61,6 +63,7 @@ const openDashboard = async (
   } as unknown as HomeAssistant;
   dashboard.marketplace = {
     repositories,
+    archives,
     info: { categories: [] },
   } as unknown as MarketplaceData;
   document.body.append(dashboard);
@@ -511,4 +514,143 @@ it("opens the row menu of a repository", async () => {
     (dashboard as unknown as { _overflowMenuRepository?: unknown })
       ._overflowMenuRepository
   ).toBe(repository);
+});
+
+const ARCHIVE: MarketplaceArchive = {
+  domain: "zipped",
+  name: "Zipped",
+  version: "1.0.0",
+  config_flow: true,
+  installed_at: "2026-10-01T12:00:00+00:00",
+  pending_restart: false,
+};
+
+it.each([
+  { tab: "installed", ids: ["1", "zip:zipped"] },
+  { tab: "browse", ids: ["1"] },
+] as const)(
+  "lists uploaded archives on the $tab tab: $ids",
+  async ({ tab, ids }) => {
+    const installed = {
+      id: "1",
+      name: "One",
+      category: "integration",
+      installed: true,
+    };
+    const dashboard = await openDashboard([installed], tab, [ARCHIVE]);
+    const table = dashboard.shadowRoot!.querySelector(
+      "hass-tabs-subpage-data-table"
+    ) as unknown as { data: { id: string }[] };
+
+    expect(table.data.map((repository) => repository.id)).toEqual(ids);
+  }
+);
+
+it("marks an uploaded archive as a ZIP", async () => {
+  const dashboard = await openDashboard([], "installed", [ARCHIVE]);
+  const table = dashboard.shadowRoot!.querySelector(
+    "hass-tabs-subpage-data-table"
+  ) as unknown as {
+    data: { status: string }[];
+    columns: { name: { extraTemplate: (row: unknown) => unknown } };
+  };
+  const cell = document.createElement("div");
+
+  render(table.columns.name.extraTemplate(table.data[0]), cell);
+
+  expect(cell.textContent).toContain("ui.panel.marketplace.archive.badge");
+  expect(cell.textContent).toContain(
+    "ui.panel.marketplace.archive.description"
+  );
+  expect(table.data[0].status).toBe("installed");
+});
+
+describe("installing an uploaded archive", () => {
+  const install = async (callWS: (message: unknown) => Promise<unknown>) => {
+    const dashboard = await openDashboard([], "installed");
+    const fetchWithAuth = vi.fn(async () => ({
+      status: 200,
+      json: async () => ({ file_id: "upload" }),
+    }));
+    dashboard.hass = {
+      ...dashboard.hass,
+      callWS: vi.fn(callWS),
+      fetchWithAuth,
+    } as unknown as HomeAssistant;
+    const dialogs: Record<string, any>[] = [];
+    dashboard.addEventListener("show-dialog", (ev) =>
+      dialogs.push((ev as CustomEvent).detail.dialogParams)
+    );
+
+    // The file picker of the browser is not there to pick a file with
+    await Reflect.get(dashboard, "_installArchive").call(
+      dashboard,
+      new File(["zip"], "zipped.zip"),
+      false
+    );
+    return { dashboard, dialogs, fetchWithAuth };
+  };
+
+  it.each([
+    { pendingRestart: false, text: "ui.panel.marketplace.archive.installed" },
+    {
+      pendingRestart: true,
+      text: "ui.panel.marketplace.archive.installed_restart",
+    },
+  ])(
+    "says it is installed, pending restart $pendingRestart",
+    async ({ pendingRestart, text }) => {
+      const { dashboard, dialogs } = await install(async () => ({
+        ...ARCHIVE,
+        pending_restart: pendingRestart,
+      }));
+
+      expect(dashboard.hass.callWS).toHaveBeenCalledWith({
+        type: "marketplace/archive/install",
+        file_id: "upload",
+      });
+      expect(dialogs.map((dialog) => dialog.text)).toEqual([text]);
+    }
+  );
+
+  it("uploads again once replacing a built-in integration is confirmed", async () => {
+    const { dashboard, dialogs, fetchWithAuth } = await install(
+      async (message) => {
+        if (
+          !(message as { confirm_replace_built_in?: boolean })
+            .confirm_replace_built_in
+        ) {
+          throw {
+            code: "replaces_built_in",
+            translation_placeholders: { domain: "sun" },
+          };
+        }
+        return ARCHIVE;
+      }
+    );
+
+    expect(dialogs[0].confirmation).toBe(true);
+    dialogs[0].confirm();
+    // The dialog does not wait for what its confirmation starts
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(dashboard.hass.callWS).toHaveBeenLastCalledWith({
+      type: "marketplace/archive/install",
+      file_id: "upload",
+      confirm_replace_built_in: true,
+    });
+  });
+
+  it("shows why an archive is refused", async () => {
+    const { dialogs } = await install(async () => {
+      throw { code: "error", message: "No integration in it" };
+    });
+
+    expect(dialogs.map((dialog) => dialog.text)).toEqual([
+      "No integration in it",
+    ]);
+  });
 });

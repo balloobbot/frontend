@@ -16,6 +16,8 @@ import type {
   MarketplaceData,
   MarketplaceInfo,
 } from "../../data/marketplace/marketplace";
+import type { MarketplaceArchive } from "../../data/marketplace/archive";
+import { fetchMarketplaceArchives } from "../../data/marketplace/archive";
 import type { RepositoryBase } from "../../data/marketplace/repository";
 import {
   ERROR_NOT_LOADED,
@@ -46,6 +48,8 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
 
   @state() private _repositories?: RepositoryBase[];
 
+  @state() private _archives?: MarketplaceArchive[];
+
   @state() private _info?: MarketplaceInfo;
 
   // Only shown while the first fetch has nothing to show yet.
@@ -75,9 +79,11 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
   private _marketplace = memoizeOne(
     (
       repositories: RepositoryBase[],
+      archives: MarketplaceArchive[],
       info: MarketplaceInfo
     ): MarketplaceData => ({
       repositories,
+      archives,
       info,
     })
   );
@@ -185,7 +191,10 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
       );
     }
 
-    if ((!this._repositories || !this._info) && this._loadError) {
+    if (
+      (!this._repositories || !this._archives || !this._info) &&
+      this._loadError
+    ) {
       return html`
         <hass-error-screen
           .hass=${this.hass}
@@ -201,7 +210,7 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
       `;
     }
 
-    if (!this._repositories || !this._info) {
+    if (!this._repositories || !this._archives || !this._info) {
       return html`
         <hass-loading-screen
           .hass=${this.hass}
@@ -227,7 +236,11 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
     return html`
       <ha-marketplace-router
         .hass=${this.hass}
-        .marketplace=${this._marketplace(this._repositories, this._info)}
+        .marketplace=${this._marketplace(
+          this._repositories,
+          this._archives,
+          this._info
+        )}
         .route=${this.route}
         .narrow=${this.narrow}
       ></ha-marketplace-router>
@@ -251,6 +264,7 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
     if (this._entryRemoved) {
       this._info = undefined;
       this._repositories = undefined;
+      this._archives = undefined;
     }
 
     const entryLoaded = this._entry?.state === "loaded";
@@ -337,9 +351,13 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
     return this._repositoriesRequest;
   };
 
+  // Installing an archive sends the same signal as a repository
   private async _fetchRepositories(): Promise<void> {
     try {
-      this._repositories = await fetchMarketplaceRepositories(this.hass);
+      [this._repositories, this._archives] = await Promise.all([
+        fetchMarketplaceRepositories(this.hass),
+        fetchMarketplaceArchives(this.hass),
+      ]);
     } catch (err) {
       this._handleFetchError(err, this._repositories);
       return;
@@ -359,7 +377,7 @@ class HaPanelMarketplace extends SubscribeMixin(LitElement) {
 
   // Either fetch failing keeps the error up until both have data.
   private _clearLoadError(): void {
-    if (this._info && this._repositories) {
+    if (this._info && this._repositories && this._archives) {
       this._loadError = undefined;
     }
   }

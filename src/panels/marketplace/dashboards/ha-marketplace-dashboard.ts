@@ -3,6 +3,7 @@ import {
   mdiCheckCircleOutline,
   mdiCompassOutline,
   mdiDotsVertical,
+  mdiFolderZipOutline,
   mdiLinkPlus,
   mdiOpenInNew,
   mdiStore,
@@ -48,11 +49,21 @@ import {
   repositoryMenuItems,
 } from "../components/ha-marketplace-repository-overflow-menu";
 import type { MarketplaceData } from "../../../data/marketplace/marketplace";
+import type { MarketplaceArchive } from "../../../data/marketplace/archive";
+import {
+  archiveRepository,
+  ERROR_REPLACES_BUILT_IN,
+  installMarketplaceArchive,
+  isArchiveRepository,
+} from "../../../data/marketplace/archive";
 import type {
   RepositoryBase,
   RepositoryType,
 } from "../../../data/marketplace/repository";
-import { marketplaceErrorMessage } from "../../../data/marketplace/websocket";
+import {
+  isWebSocketError,
+  marketplaceErrorMessage,
+} from "../../../data/marketplace/websocket";
 import { dismissNewMarketplaceRepositories } from "../../../data/marketplace/repository";
 import { haStyle } from "../../../resources/styles";
 import {
@@ -65,7 +76,10 @@ import {
 import type { RepositoryFilters } from "./dashboard-repositories";
 import { documentationUrl } from "../../../util/documentation-url";
 import { renderRepositoryIcon } from "../tools/repository-icon";
-import { showAlertDialog } from "../../../dialogs/generic/show-dialog-box";
+import {
+  showAlertDialog,
+  showConfirmationDialog,
+} from "../../../dialogs/generic/show-dialog-box";
 
 const defaultKeyData = {
   title: "",
@@ -115,14 +129,29 @@ const marketplaceTabs = (
 // page of a tab, so it is often not around to hear the navigation itself.
 const APPLIED_LINK_STATE = "marketplaceAppliedLink";
 
-// The installed tab lists what is installed, the others everything
+// The installed tab lists what is installed, the others everything. Uploaded
+// archives have nothing to browse, only the installed tab lists them.
 const repositoriesOfTab = (
   repositories: RepositoryBase[],
-  tab: MarketplaceTab
+  archives: MarketplaceArchive[],
+  tab: MarketplaceTab,
+  localize: LocalizeFunc
 ): RepositoryBase[] =>
   tab === "installed"
-    ? repositories.filter((repository) => repository.installed)
+    ? [
+        ...repositories.filter((repository) => repository.installed),
+        ...archives.map((archive) =>
+          archiveRepository(
+            archive,
+            localize("ui.panel.marketplace.archive.description")
+          )
+        ),
+      ]
     : repositories;
+
+// Styled inline, the table renders it where the styles of the page do not reach
+const ZIP_BADGE_STYLE =
+  "margin-inline-start: var(--ha-space-2); padding: 0 var(--ha-space-1); border: 1px solid var(--divider-color); border-radius: var(--ha-border-radius-sm); font-size: var(--ha-font-size-xs); font-weight: var(--ha-font-weight-medium); color: var(--secondary-text-color)";
 
 @customElement("ha-marketplace-dashboard")
 export class HaMarketplaceDashboard extends LitElement {
@@ -258,7 +287,7 @@ export class HaMarketplaceDashboard extends LitElement {
     }
 
     const repositories = this._filterRepositories(
-      this._repositoriesOfTab(this.marketplace.repositories, this.tab),
+      this._tabRepositories(),
       this.hass.localize,
       this._filters
     );
@@ -374,9 +403,31 @@ export class HaMarketplaceDashboard extends LitElement {
     const addFromLink = this.hass.localize(
       "ui.panel.marketplace.tabs.add_from_link"
     );
+    const uploadZip = this.hass.localize("ui.panel.marketplace.archive.upload");
 
     // The toolbar slot does not line up what is in it, this row centres them
     return html`<div class="toolbar-actions" slot="toolbar-icon">
+      ${
+        this.narrow
+          ? html`<ha-icon-button
+              class="upload-zip"
+              .label=${uploadZip}
+              .path=${mdiFolderZipOutline}
+              @click=${this.uploadArchive}
+            ></ha-icon-button>`
+          : html`<ha-button
+              class="upload-zip"
+              appearance="outlined"
+              size="s"
+              @click=${this.uploadArchive}
+            >
+              <ha-svg-icon
+                slot="start"
+                .path=${mdiFolderZipOutline}
+              ></ha-svg-icon>
+              ${uploadZip}
+            </ha-button>`
+      }
       ${
         this.narrow
           ? html`<ha-icon-button
@@ -457,10 +508,19 @@ export class HaMarketplaceDashboard extends LitElement {
         hidden: false,
         sortable: true,
         flex: 3,
+        // A template would replace the narrow layout, the badge follows the name
         extraTemplate: (repository: RepositoryBase) =>
-          !narrow
-            ? html`<div class="secondary">${repository.description}</div>`
-            : nothing,
+          html`${
+            isArchiveRepository(repository)
+              ? html`<span style=${ZIP_BADGE_STYLE}
+                  >${localizeFunc("ui.panel.marketplace.archive.badge")}</span
+                >`
+              : nothing
+          }${
+            !narrow
+              ? html`<div class="secondary">${repository.description}</div>`
+              : nothing
+          }`,
       },
       downloads: {
         ...defaultKeyData,
@@ -564,7 +624,7 @@ export class HaMarketplaceDashboard extends LitElement {
     }
     this._openingOverflowMenu = true;
     this._repositoryOverflowMenu.anchorElement = button;
-    this._overflowMenuRepository = this.marketplace.repositories.find(
+    this._overflowMenuRepository = this._tabRepositories().find(
       (repository) => repository.id === button.dataset.repositoryId
     );
     this._repositoryOverflowMenu.open = true;
@@ -668,8 +728,86 @@ export class HaMarketplaceDashboard extends LitElement {
       }))
   );
 
+  private _tabRepositories(): RepositoryBase[] {
+    return this._repositoriesOfTab(
+      this.marketplace.repositories,
+      this.marketplace.archives,
+      this.tab,
+      this.hass.localize
+    );
+  }
+
   private _handleRowClicked(ev: CustomEvent) {
+    const repository = this._tabRepositories().find(
+      (row) => row.id === ev.detail.id
+    );
+    // An uploaded archive has no page, its menu has all there is to do
+    if (repository && isArchiveRepository(repository)) {
+      return;
+    }
     navigate(`/marketplace/repository/${ev.detail.id}`);
+  }
+
+  // Also an update, an upload of the same domain replaces what is installed
+  public uploadArchive = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".zip,application/zip";
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      if (file) {
+        this._installArchive(file, false);
+      }
+    });
+    input.click();
+  };
+
+  private async _installArchive(file: File, confirmReplaceBuiltIn: boolean) {
+    const localize = this.hass.localize;
+    let archive: MarketplaceArchive;
+    try {
+      archive = await installMarketplaceArchive(this.hass, file, {
+        confirmReplaceBuiltIn,
+      });
+    } catch (err: unknown) {
+      if (isWebSocketError(err, ERROR_REPLACES_BUILT_IN)) {
+        const domain =
+          (err as { translation_placeholders?: Record<string, string> })
+            .translation_placeholders?.domain ?? "";
+        // The refused upload is gone, confirming uploads the file again
+        showConfirmationDialog(this, {
+          title: localize(
+            "ui.panel.marketplace.dialog_install.replaces_built_in_title",
+            { domain }
+          ),
+          text: localize(
+            "ui.panel.marketplace.dialog_install.replaces_built_in_warning",
+            { repository: file.name, domain }
+          ),
+          confirmText: localize("ui.panel.marketplace.common.install"),
+          destructive: true,
+          confirm: () => this._installArchive(file, true),
+        });
+        return;
+      }
+      showAlertDialog(this, {
+        title: localize("ui.panel.marketplace.dialog.error.title"),
+        text: marketplaceErrorMessage(err, localize),
+      });
+      return;
+    }
+
+    showAlertDialog(this, {
+      title: localize("ui.panel.marketplace.archive.installed_title", {
+        name: archive.name,
+      }),
+      text: localize(
+        archive.pending_restart
+          ? "ui.panel.marketplace.archive.installed_restart"
+          : "ui.panel.marketplace.archive.installed",
+        { name: archive.name, version: archive.version }
+      ),
+    });
   }
 
   private _statusFilterChanged(ev: CustomEvent<{ value: string[] }>) {
