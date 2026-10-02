@@ -49,10 +49,14 @@ import {
   repositoryMenuItems,
 } from "../components/ha-marketplace-repository-overflow-menu";
 import type { MarketplaceData } from "../../../data/marketplace/marketplace";
-import type { MarketplaceArchive } from "../../../data/marketplace/archive";
+import type {
+  ArchiveInstallOptions,
+  MarketplaceArchive,
+} from "../../../data/marketplace/archive";
 import {
   archiveRepository,
   ERROR_REPLACES_BUILT_IN,
+  ERROR_REPLACES_REPOSITORY,
   installMarketplaceArchive,
   isArchiveRepository,
 } from "../../../data/marketplace/archive";
@@ -756,25 +760,47 @@ export class HaMarketplaceDashboard extends LitElement {
     input.addEventListener("change", () => {
       const file = input.files?.[0];
       if (file) {
-        this._installArchive(file, false);
+        this._installArchive(file);
       }
     });
     input.click();
   };
 
-  private async _installArchive(file: File, confirmReplaceBuiltIn: boolean) {
+  private async _installArchive(
+    file: File,
+    confirmed: ArchiveInstallOptions = {}
+  ) {
     const localize = this.hass.localize;
     let archive: MarketplaceArchive;
     try {
-      archive = await installMarketplaceArchive(this.hass, file, {
-        confirmReplaceBuiltIn,
-      });
+      archive = await installMarketplaceArchive(this.hass, file, confirmed);
     } catch (err: unknown) {
+      const placeholders =
+        (err as { translation_placeholders?: Record<string, string> } | null)
+          ?.translation_placeholders ?? {};
+      // The refused upload is gone, confirming uploads the file again
+      if (isWebSocketError(err, ERROR_REPLACES_REPOSITORY)) {
+        showConfirmationDialog(this, {
+          title: localize(
+            "ui.panel.marketplace.archive.replaces_repository_title",
+            { repository: placeholders.repository }
+          ),
+          text: localize(
+            "ui.panel.marketplace.archive.replaces_repository_text",
+            placeholders
+          ),
+          confirmText: localize("ui.panel.marketplace.archive.replace"),
+          destructive: true,
+          confirm: () =>
+            this._installArchive(file, {
+              ...confirmed,
+              confirmReplaceRepository: true,
+            }),
+        });
+        return;
+      }
       if (isWebSocketError(err, ERROR_REPLACES_BUILT_IN)) {
-        const domain =
-          (err as { translation_placeholders?: Record<string, string> })
-            .translation_placeholders?.domain ?? "";
-        // The refused upload is gone, confirming uploads the file again
+        const domain = placeholders.domain ?? "";
         showConfirmationDialog(this, {
           title: localize(
             "ui.panel.marketplace.dialog_install.replaces_built_in_title",
@@ -786,7 +812,11 @@ export class HaMarketplaceDashboard extends LitElement {
           ),
           confirmText: localize("ui.panel.marketplace.common.install"),
           destructive: true,
-          confirm: () => this._installArchive(file, true),
+          confirm: () =>
+            this._installArchive(file, {
+              ...confirmed,
+              confirmReplaceBuiltIn: true,
+            }),
         });
         return;
       }

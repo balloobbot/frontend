@@ -3,6 +3,7 @@ import {
   mdiBug,
   mdiDelete,
   mdiDownload,
+  mdiFolderDownloadOutline,
   mdiFolderZipOutline,
   mdiGithub,
   mdiHistory,
@@ -23,6 +24,7 @@ import {
   showConfirmationDialog,
 } from "../../../dialogs/generic/show-dialog-box";
 import {
+  downloadIntegrationArchive,
   isArchiveRepository,
   uninstallMarketplaceArchive,
 } from "../../../data/marketplace/archive";
@@ -77,6 +79,23 @@ const showError = (
     title: localize("ui.panel.marketplace.dialog.error.title"),
     text: marketplaceErrorMessage(err, localize),
   });
+
+const downloadEntry = (
+  element: MarketplaceDashboardElement,
+  domain: string,
+  localize: LocalizeFunc
+): MarketplaceRepositoryMenuItem => ({
+  value: "download",
+  path: mdiFolderDownloadOutline,
+  label: localize("ui.panel.marketplace.archive.download"),
+  action: async () => {
+    try {
+      await downloadIntegrationArchive(element.hass, domain);
+    } catch (err: unknown) {
+      showError(element, localize, err);
+    }
+  },
+});
 
 const uninstallRepository = async (
   element: MarketplaceDashboardElement,
@@ -163,6 +182,7 @@ export const repositoryMenuItems = (
         label: localize("ui.panel.marketplace.archive.upload_new_version"),
         action: () => (element as HaMarketplaceDashboard).uploadArchive(),
       },
+      downloadEntry(element, repository.domain!, localize),
       { divider: true },
       {
         value: "uninstall",
@@ -251,6 +271,15 @@ export const repositoryMenuItems = (
         chooseVersion: true,
       }),
   });
+
+  // The installed files, to change them and upload them again
+  if (
+    repository.category === "integration" &&
+    repository.installed &&
+    repository.domain
+  ) {
+    entries.push(downloadEntry(element, repository.domain, localize));
+  }
 
   if (repository.new) {
     entries.push({

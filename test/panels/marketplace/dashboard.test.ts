@@ -585,8 +585,7 @@ describe("installing an uploaded archive", () => {
     // The file picker of the browser is not there to pick a file with
     await Reflect.get(dashboard, "_installArchive").call(
       dashboard,
-      new File(["zip"], "zipped.zip"),
-      false
+      new File(["zip"], "zipped.zip")
     );
     return { dashboard, dialogs, fetchWithAuth };
   };
@@ -641,6 +640,43 @@ describe("installing an uploaded archive", () => {
       type: "marketplace/archive/install",
       file_id: "upload",
       confirm_replace_built_in: true,
+    });
+  });
+
+  it("uploads again once replacing a Marketplace install is confirmed", async () => {
+    const { dashboard, dialogs, fetchWithAuth } = await install(
+      async (message) => {
+        if (
+          !(message as { confirm_replace_repository?: boolean })
+            .confirm_replace_repository
+        ) {
+          throw {
+            code: "replaces_repository",
+            translation_placeholders: {
+              repository: "owner/example",
+              domain: "example",
+            },
+          };
+        }
+        return ARCHIVE;
+      }
+    );
+
+    expect(dialogs[0].confirmation).toBe(true);
+    expect(dialogs[0].title).toBe(
+      "ui.panel.marketplace.archive.replaces_repository_title"
+    );
+    dialogs[0].confirm();
+    // The dialog does not wait for what its confirmation starts
+    await new Promise((resolve) => {
+      setTimeout(resolve, 0);
+    });
+
+    expect(fetchWithAuth).toHaveBeenCalledTimes(2);
+    expect(dashboard.hass.callWS).toHaveBeenLastCalledWith({
+      type: "marketplace/archive/install",
+      file_id: "upload",
+      confirm_replace_repository: true,
     });
   });
 

@@ -12277,7 +12277,11 @@
           "upload_new_version": "Upload new version",
           "installed_title": "{name} is installed",
           "installed": "Version {version} of {name} is installed.",
-          "installed_restart": "Version {version} of {name} is installed. Restart Home Assistant to load it."
+          "installed_restart": "Version {version} of {name} is installed. Restart Home Assistant to load it.",
+          "download": "Download ZIP",
+          "replace": "Replace",
+          "replaces_repository_title": "Replace {repository}?",
+          "replaces_repository_text": "The {domain} integration is installed from {repository} in the Marketplace. The ZIP file replaces it, and the Marketplace stops updating it. To go back, install {repository} from the Marketplace again."
         },
         "dashboard": {
           "search": "Search {number} {number, plural,\n  one {repository}\n  other {repositories}\n}",

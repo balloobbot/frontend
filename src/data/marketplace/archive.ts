@@ -1,4 +1,6 @@
 import type { HomeAssistant } from "../../types";
+import { fileDownload } from "../../util/file_download";
+import { getSignedPath } from "../auth";
 import { uploadFile } from "../file_upload";
 import type { RepositoryBase } from "./repository";
 
@@ -6,6 +8,10 @@ type CallWS = Pick<HomeAssistant, "callWS">;
 
 // Installing an integration over a built-in one answers with this until it is confirmed
 export const ERROR_REPLACES_BUILT_IN = "replaces_built_in";
+
+// Installing over an integration a repository installed answers with this until
+// it is confirmed
+export const ERROR_REPLACES_REPOSITORY = "replaces_repository";
 
 // An integration installed from a ZIP archive the user uploaded
 export interface MarketplaceArchive {
@@ -24,6 +30,23 @@ export interface ArchiveRepository extends RepositoryBase {
 
 export const ARCHIVE_ID_PREFIX = "zip:";
 
+export interface ArchiveInstallOptions {
+  confirmReplaceBuiltIn?: boolean;
+  confirmReplaceRepository?: boolean;
+}
+
+// Any custom integration downloads, the archive installs again with an upload
+export const downloadIntegrationArchive = async (
+  hass: HomeAssistant,
+  domain: string
+) => {
+  const signed = await getSignedPath(
+    hass,
+    `/api/marketplace/integration/${domain}/archive`
+  );
+  fileDownload(signed.path);
+};
+
 export const fetchMarketplaceArchives = (hass: CallWS) =>
   hass.callWS<MarketplaceArchive[]>({ type: "marketplace/archives/list" });
 
@@ -31,13 +54,16 @@ export const fetchMarketplaceArchives = (hass: CallWS) =>
 export const installMarketplaceArchive = async (
   hass: HomeAssistant,
   file: File,
-  options: { confirmReplaceBuiltIn?: boolean } = {}
+  options: ArchiveInstallOptions = {}
 ) =>
   hass.callWS<MarketplaceArchive>({
     type: "marketplace/archive/install",
     file_id: await uploadFile(hass, file),
     ...(options.confirmReplaceBuiltIn
       ? { confirm_replace_built_in: true }
+      : {}),
+    ...(options.confirmReplaceRepository
+      ? { confirm_replace_repository: true }
       : {}),
   });
 

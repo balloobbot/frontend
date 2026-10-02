@@ -17,6 +17,7 @@ import type { MarketplaceInUseDialogParams } from "../../../src/panels/marketpla
 import { showMarketplaceInstallDialog } from "../../../src/panels/marketplace/dialogs/show-dialog-marketplace-install";
 import {
   archiveRepository,
+  downloadIntegrationArchive,
   uninstallMarketplaceArchive,
 } from "../../../src/data/marketplace/archive";
 import type { LocalizeFunc } from "../../../src/common/translations/localize";
@@ -47,6 +48,7 @@ vi.mock("../../../src/dialogs/generic/show-dialog-box", () => ({
 }));
 vi.mock("../../../src/data/marketplace/archive", async (importOriginal) => ({
   ...(await importOriginal<object>()),
+  downloadIntegrationArchive: vi.fn(),
   uninstallMarketplaceArchive: vi.fn(),
 }));
 vi.mock("../../../src/data/marketplace/repository", async (importOriginal) => ({
@@ -315,6 +317,32 @@ describe("repositoryMenuItems", () => {
   });
 });
 
+describe("downloading an integration", () => {
+  it.each([
+    {
+      name: "an installed integration",
+      extra: { installed: true, domain: "example" },
+      offered: true,
+    },
+    {
+      name: "an integration that is not installed",
+      extra: { installed: false, domain: "example" },
+      offered: false,
+    },
+    {
+      name: "a dashboard",
+      extra: { installed: true, category: "plugin" as const },
+      offered: false,
+    },
+  ])("is offered for $name: $offered", ({ extra, offered }) => {
+    expect(
+      menuValues(
+        repositoryMenuItems(PAGE, repository(extra), localize)
+      ).includes("download")
+    ).toBe(offered);
+  });
+});
+
 describe("repositoryMenuItems for an uploaded archive", () => {
   const DASHBOARD = {
     nodeName: "HA-MARKETPLACE-DASHBOARD",
@@ -343,10 +371,19 @@ describe("repositoryMenuItems for an uploaded archive", () => {
     ).action();
 
   // There is no GitHub repository, nor a page of its own
-  it("offers only another upload and uninstalling", () => {
+  it("offers only another upload, a download and uninstalling", () => {
     expect(
       menuValues(repositoryMenuItems(DASHBOARD, ARCHIVE, localize))
-    ).toEqual(["upload_new_version", "uninstall"]);
+    ).toEqual(["upload_new_version", "download", "uninstall"]);
+  });
+
+  it("downloads what is installed", async () => {
+    await action("download");
+
+    expect(downloadIntegrationArchive).toHaveBeenCalledWith(
+      DASHBOARD.hass,
+      "zipped"
+    );
   });
 
   it("uploads a new version", async () => {
