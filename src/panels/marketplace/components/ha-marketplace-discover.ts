@@ -1,5 +1,5 @@
 import type { ContextType } from "@lit/context";
-import { mdiCheckCircle, mdiDownload, mdiStar } from "@mdi/js";
+import { mdiCheckCircle, mdiDownloadMultiple, mdiStar } from "@mdi/js";
 import type { CSSResultGroup } from "lit";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, property, state } from "lit/decorators";
@@ -160,7 +160,7 @@ export class HaMarketplaceDiscover extends LitElement {
         ${
           repository.downloads
             ? html`<span>
-                <ha-svg-icon .path=${mdiDownload}></ha-svg-icon>
+                <ha-svg-icon .path=${mdiDownloadMultiple}></ha-svg-icon>
                 ${formatNumber(repository.downloads, locale, compact)}
               </span>`
             : nothing

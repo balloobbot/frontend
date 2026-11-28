@@ -3,12 +3,11 @@ import {
   mdiAccountGroup,
   mdiAlertCircleOutline,
   mdiArrowUpBoldCircleOutline,
-  mdiBug,
   mdiCheckCircle,
   mdiCheckCircleOutline,
   mdiDotsVertical,
-  mdiDownload,
-  mdiGithub,
+  mdiDownloadMultiple,
+  mdiPackageVariantClosed,
   mdiRestart,
   mdiStar,
   mdiTestTube,
@@ -706,13 +705,12 @@ export class HaMarketplaceRepositoryDashboard extends LitElement {
     if (!repository.installed) {
       return {
         kind: "available",
-        icon: mdiDownload,
+        icon: mdiPackageVariantClosed,
         title: localize("ui.panel.marketplace.repository.status.not_installed"),
         detail: localize("ui.panel.marketplace.repository.status.available", {
           version: repository.available_version,
         }),
         action: this._installButton(
-          mdiDownload,
           localize("ui.panel.marketplace.common.install")
         ),
       };
@@ -734,11 +732,7 @@ export class HaMarketplaceRepositoryDashboard extends LitElement {
           installed: repository.installed_version,
           version: repository.available_version,
         }),
-        action: this._installButton(
-          mdiArrowUpBoldCircleOutline,
-          localize("ui.common.update"),
-          this._update
-        ),
+        action: this._installButton(localize("ui.common.update"), this._update),
       };
     }
 
@@ -799,12 +793,10 @@ export class HaMarketplaceRepositoryDashboard extends LitElement {
   }
 
   private _installButton(
-    icon: string,
     label: string,
     handler: () => void = this._installRepositoryDialog
   ) {
     return html`<ha-button appearance="filled" @click=${handler}>
-      <ha-svg-icon slot="start" .path=${icon}></ha-svg-icon>
       ${label}
     </ha-button>`;
   }
@@ -937,7 +929,6 @@ type: module</pre>`,
           target="_blank"
           rel="noreferrer"
         >
-          <ha-svg-icon slot="start" .path=${mdiGithub}></ha-svg-icon>
           ${localize("ui.panel.marketplace.repository.details.source_code")}
         </ha-button>
         <ha-button
@@ -946,7 +937,6 @@ type: module</pre>`,
           target="_blank"
           rel="noreferrer"
         >
-          <ha-svg-icon slot="start" .path=${mdiBug}></ha-svg-icon>
           ${localize("ui.panel.marketplace.repository.details.issue_tracker")}
         </ha-button>
       </div>
@@ -1026,7 +1016,7 @@ type: module</pre>`,
     }
     if (repository.downloads) {
       signals.push({
-        icon: mdiDownload,
+        icon: mdiDownloadMultiple,
         text: localize("ui.panel.marketplace.repository.community.downloads", {
           number: repository.downloads,
           count: html`<strong

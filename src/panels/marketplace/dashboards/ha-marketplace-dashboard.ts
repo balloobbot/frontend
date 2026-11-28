@@ -6,7 +6,7 @@ import {
   mdiCheckCircleOutline,
   mdiCompassOutline,
   mdiDotsVertical,
-  mdiDownload,
+  mdiDownloadMultiple,
   mdiLinkPlus,
   mdiOpenInNew,
   mdiStar,
@@ -674,7 +674,7 @@ export class HaMarketplaceDashboard extends LitElement {
 
           return html`${
             narrow
-              ? html`<ha-svg-icon .path=${mdiDownload}></ha-svg-icon>`
+              ? html`<ha-svg-icon .path=${mdiDownloadMultiple}></ha-svg-icon>`
               : nothing
           }${formatNumber(repository.downloads, this._i18n.locale, compact)}`;
         },
