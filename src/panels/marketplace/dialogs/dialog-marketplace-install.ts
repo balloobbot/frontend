@@ -1,5 +1,6 @@
 import type { RenderItemFunction } from "@lit-labs/virtualizer/virtualize";
 import type { ContextType } from "@lit/context";
+import { mdiSwapHorizontal, mdiUpdate } from "@mdi/js";
 import type { CSSResultGroup } from "lit";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, state } from "lit/decorators";
@@ -21,6 +22,7 @@ import {
   type PickerComboBoxItem,
 } from "../../../components/ha-picker-combo-box";
 import "../../../components/ha-spinner";
+import "../../../components/ha-svg-icon";
 import "../../../components/progress/ha-progress-bar";
 
 import { relativeTime } from "../../../common/datetime/relative_time";
@@ -259,6 +261,7 @@ export class DialogMarketplaceInstall extends DialogMixin<MarketplaceInstallDial
                 { domain: repository.domain }
               )}
             >
+              <ha-svg-icon slot="icon" .path=${mdiSwapHorizontal}></ha-svg-icon>
               ${this._i18n.localize(
                 "ui.panel.marketplace.dialog_install.replaces_built_in_warning",
                 { repository: repository.name, domain: repository.domain }
@@ -281,6 +284,7 @@ export class DialogMarketplaceInstall extends DialogMixin<MarketplaceInstallDial
       ${
         tooNew
           ? html`<ha-alert alert-type="warning">
+              <ha-svg-icon slot="icon" .path=${mdiUpdate}></ha-svg-icon>
               ${installBlockedReason(this._i18n.localize, repository)}
               ${this._i18n.localize(
                 "ui.panel.marketplace.dialog_install.older_version_hint"

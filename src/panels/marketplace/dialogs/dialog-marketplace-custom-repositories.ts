@@ -1,4 +1,5 @@
 import type { ContextType } from "@lit/context";
+import { mdiGithub } from "@mdi/js";
 import { css, html, LitElement, nothing } from "lit";
 import { customElement, state } from "lit/decorators";
 import memoizeOne from "memoize-one";
@@ -10,6 +11,7 @@ import "../../../components/ha-dialog";
 import "../../../components/ha-dialog-footer";
 import "../../../components/ha-form/ha-form";
 import type { HaFormSchema } from "../../../components/ha-form/types";
+import "../../../components/ha-svg-icon";
 import "../../../components/progress/ha-progress-bar";
 import { apiContext, internationalizationContext } from "../../../data/context";
 import type { RepositoryType } from "../../../data/marketplace/repository";
@@ -79,6 +81,7 @@ export class DialogMarketplaceCustomRepositories extends DialogMixin<Marketplace
             this._githubConnected
               ? nothing
               : html`<ha-alert alert-type="info">
+                  <ha-svg-icon slot="icon" .path=${mdiGithub}></ha-svg-icon>
                   ${this._i18n.localize(
                     "ui.panel.marketplace.dialog_custom_repositories.github_needed"
                   )}
