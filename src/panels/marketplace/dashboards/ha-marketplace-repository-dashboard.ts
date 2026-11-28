@@ -757,7 +757,6 @@ export class HaMarketplaceRepositoryDashboard extends LitElement {
           appearance="filled"
           @click=${this._restart}
         >
-          <ha-svg-icon slot="start" .path=${mdiRestart}></ha-svg-icon>
           ${localize("ui.panel.marketplace.repository.next_step.restart_button")}
         </ha-button>`,
       };
