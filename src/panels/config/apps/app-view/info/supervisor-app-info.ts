@@ -1,13 +1,14 @@
 import "@home-assistant/webawesome/dist/components/divider/divider";
 import type { ContextType } from "@lit/context";
 import {
-  mdiApplicationImport,
   mdiArrowUpBoldCircleOutline,
   mdiCheckCircle,
   mdiChip,
   mdiCursorDefaultClickOutline,
+  mdiDelete,
   mdiDocker,
   mdiDotsVertical,
+  mdiDownload,
   mdiExclamationThick,
   mdiFlask,
   mdiHammer,
@@ -22,7 +23,6 @@ import {
   mdiNumeric6,
   mdiNumeric7,
   mdiNumeric8,
-  mdiPackageVariantRemove,
   mdiPlay,
   mdiPound,
   mdiRestart,
@@ -637,7 +637,7 @@ class SupervisorAppInfo extends MobileAwareMixin(LitElement) {
                         <ha-progress-button
                           .disabled=${!this._currentAddon.available}
                           @click=${this._installClicked}
-                          .iconPath=${mdiApplicationImport}
+                          .iconPath=${mdiDownload}
                         >
                           ${this.i18n.localize(
                             "ui.panel.config.apps.dashboard.install"
@@ -714,10 +714,7 @@ class SupervisorAppInfo extends MobileAwareMixin(LitElement) {
                       this._uninstalling
                     }
                   >
-                    <ha-svg-icon
-                      slot="icon"
-                      .path=${mdiPackageVariantRemove}
-                    ></ha-svg-icon>
+                    <ha-svg-icon slot="icon" .path=${mdiDelete}></ha-svg-icon>
                     ${this.i18n.localize(
                       "ui.panel.config.apps.dashboard.uninstall"
                     )}
